@@ -80,6 +80,12 @@ public final class PluginMessages {
 	@Comment("Ender chest access flag message")
 	private String enderchestAccessDenied = "&c&lHey! &r&7Sorry, but you can't open ender chests here!";
 
+	@Comment("WorldEdit navigation-wand left-click blocked by navwand-jumpto")
+	private String navwandJumptoDenied = "&c&lHey! &r&7Sorry, but you cannot use navigation-wand jump-to here!";
+
+	@Comment("WorldEdit navigation-wand right-click blocked by navwand-thru")
+	private String navwandThruDenied = "&c&lHey! &r&7Sorry, but you cannot use navigation-wand pass-through here!";
+
 	@Comment("WorldEdit / FAWE denied by region worldedit flag")
 	private String worldeditDenied = "&c&lHey! &r&7Sorry, but you cannot use WorldEdit here (worldedit flag).";
 	
