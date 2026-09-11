@@ -16,6 +16,7 @@ import java.util.logging.Level;
  */
 public class Config
 {
+	public static boolean isNavigationWandDebug() { return config != null && config.isNavigationWandDebug(); }
 	private static JavaPlugin plugin;
 	private static PluginConfig config;
 	private static Path configFile;

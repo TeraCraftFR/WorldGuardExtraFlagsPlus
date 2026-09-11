@@ -72,6 +72,7 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	 * ProtocolLib types when ProtocolLib is not installed (optional softdepend).
 	 */
 	private Object disableCompletelyProtocolLibListener;
+	private NavigationWandListener navigationWandListener;
 	
 	// Collision flag handler (uses native Minecraft teams, no external libraries needed)
 	@Getter private boolean collisionFlagEnabled = false;
@@ -317,7 +318,9 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 
 		if (Config.isFlagEnabled("navwand-jumpto") || Config.isFlagEnabled("navwand-thru"))
 		{
-			this.getServer().getPluginManager().registerEvents(new NavigationWandListener(this.worldGuardPlugin, this.regionContainer, this.sessionManager), this);
+			this.navigationWandListener = new NavigationWandListener(this.worldEditPlugin.getWorldEdit(), this.worldGuardPlugin, this.regionContainer, this.sessionManager, this.getLogger());
+			this.worldEditPlugin.getWorldEdit().getEventBus().register(this.navigationWandListener);
+			this.getLogger().info("Navwand input guard active (4.4.6): jumpto / thru");
 		}
 
 		// EntityListener handles multiple flags
@@ -1001,6 +1004,10 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	@Override
 	public void onDisable()
 	{
+		if (this.navigationWandListener != null) {
+			this.navigationWandListener.close();
+			this.navigationWandListener = null;
+		}
 		if (this.placeholderExpansion != null)
 		{
 			this.placeholderExpansion.shutdown();
