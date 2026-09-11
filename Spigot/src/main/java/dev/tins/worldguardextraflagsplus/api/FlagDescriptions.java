@@ -139,6 +139,16 @@ public final class FlagDescriptions
 				"/rg flag <region> play-sounds minecraft:block.note_block.pling"));
 
 		// ── WORLD INTERACTION ───────────────────────────────────────────
+		ALL.put("navwand-jumpto", new FlagMeta(
+				"Controls WorldEdit navigation-wand left-click (jump-to) from the departure region, on any bound item. Commands are unchanged. Respects WorldGuard bypass.",
+				"allow / deny",
+				"/rg flag <region> navwand-jumpto deny"));
+
+		ALL.put("navwand-thru", new FlagMeta(
+				"Controls WorldEdit navigation-wand right-click (pass-through) from the departure region, on any bound item. Commands are unchanged. Respects WorldGuard bypass.",
+				"allow / deny",
+				"/rg flag <region> navwand-thru deny"));
+
 		ALL.put("worldedit", new FlagMeta(
 				"Controls whether WorldEdit operations are allowed in the region. Bypass permission: worldguardextraflagsplus.worldedit.bypass.",
 				"allow / deny",
