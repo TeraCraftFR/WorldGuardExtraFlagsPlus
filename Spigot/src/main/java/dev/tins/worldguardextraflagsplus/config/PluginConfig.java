@@ -13,6 +13,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Configuration
 public final class PluginConfig {
+	@Comment("Log navigation-wand action, item, region flag result and WorldGuard bypass for troubleshooting.")
+	private boolean navigationWandDebug = false;
 	
 	public static final String CONFIG_HEADER = """
 		WorldGuardExtraFlagsPlus Configuration

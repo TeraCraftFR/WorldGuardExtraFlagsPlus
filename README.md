@@ -122,26 +122,35 @@ disabling registration. Messages `navwand-jumpto-denied` and `navwand-thru-denie
 in `messages-wgefp.yml` use the existing message cooldown; an empty string silences
 the corresponding message.
 
-### Integration limits and validation
+### Navigation input guard
 
-WorldEdit can process cancelled Bukkit clicks. These flags instead cancel a
-`PLUGIN` teleport when its synchronous call stack contains exactly
-`com.sk89q.worldedit.command.tool.NavigationWand.actSecondary` (left click) or
-`actPrimary` (right click). WorldEdit has already selected the tool and checked
-its permissions at that point. Unrelated plugin teleports are left alone even
-while holding a navigation item.
+The navigation guard runs before WorldEdit/FAWE dispatches `PlayerInputEvent`.
+It resolves the real bound `NavigationWand`, checks the departure region and
+WorldGuard bypass, and temporarily supplies a harmless trace tool only when the
+requested action is denied. The original binding is restored after input
+handlers finish. FAWE's queued action retains the harmless tool even after
+restoration, so no teleport-stack inspection or recent-click timeout is needed.
+WorldEdit uses its item-type binding API; FAWE uses its player-aware lookup and
+restores the original item object, including metadata. No inventory changes or
+permissions changes are made. Commands and other tools never enter this path.
 
-This depends on WorldEdit implementation details. **FAWE's deferred/asynchronous
-teleport path is not supported by this implementation**: it can lose the tool
-call stack before the Bukkit teleport event. Renamed tool classes/methods and
-other deferred forks also need a dedicated integration. Do not rely on these
-flags as a FAWE protection. Folia runtime behavior has not been validated.
+`navigation-wand-debug: true` at the top level of `config-wgefp.yml` logs the
+resolved action, item, flag state and bypass. Reload config with `/wgefp reload`.
+The startup message identifies this build as `4.4.6`.
 
-Automated tests cover both actions, independent toggles, region states, departure
-location, bypass, unrelated teleports and stack filtering. In-game validation is
-still required: test both clicks with a compass and a non-compass bound item,
-deny only one action at a time, test allowed/denied departure regions, ordinary
-items, navigation commands, portals and WorldGuard bypass.
+Automated checks exercise the real event bus using both WorldEdit 7.4.5 and
+FAWE 2.15.4 runtime JARs, including a deferred action on a separate thread,
+independent left/right flags, restoration, other tools and WorldGuard bypass.
+They mock the Bukkit player and region query; the server operator has also confirmed that the fix works on their FAWE server.
+WorldEdit has automated coverage but has not received a live gameplay check in this validation. Test both clicks with a compass and a different bound item,
+deny one action at a time, and check allowed regions, commands and portals.
+Folia has not been tested in a running server.
+
+To run the tests against a full WorldEdit or FAWE distribution JAR:
+
+```text
+mvn clean package -Dnavigation.runtimeJar=/absolute/path/to/plugin.jar
+```
 
 ## Configuration
 
