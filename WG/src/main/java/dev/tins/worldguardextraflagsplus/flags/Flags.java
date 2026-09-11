@@ -43,6 +43,9 @@ public final class Flags
 	
 	public final static LocationFlag RESPAWN_LOCATION = new LocationFlag("respawn-location");
 	
+	public final static StateFlag NAVWAND_JUMPTO = new StateFlag("navwand-jumpto", true);
+	public final static StateFlag NAVWAND_THRU = new StateFlag("navwand-thru", true);
+
 	public final static StateFlag WORLDEDIT = new StateFlag("worldedit", true);
 	
 	public final static SetFlag<PotionEffect> GIVE_EFFECTS = new SetFlag("give-effects", new PotionEffectFlag(null));

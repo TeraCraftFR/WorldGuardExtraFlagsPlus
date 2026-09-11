@@ -120,6 +120,8 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 			if (Config.isFlagEnabled("godmode")) flagRegistry.register(Flags.GODMODE);
 			if (Config.isFlagEnabled("respawn-location")) flagRegistry.register(Flags.RESPAWN_LOCATION);
 			if (Config.isFlagEnabled("worldedit")) flagRegistry.register(Flags.WORLDEDIT);
+			if (Config.isFlagEnabled("navwand-jumpto")) flagRegistry.register(Flags.NAVWAND_JUMPTO);
+			if (Config.isFlagEnabled("navwand-thru")) flagRegistry.register(Flags.NAVWAND_THRU);
 			if (Config.isFlagEnabled("give-effects")) flagRegistry.register(Flags.GIVE_EFFECTS);
 			if (Config.isFlagEnabled("fly")) flagRegistry.register(Flags.FLY);
 			if (Config.isFlagEnabled("fly-speed")) flagRegistry.register(Flags.FLY_SPEED);
@@ -311,6 +313,11 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 		if (Config.isFlagEnabled("chunk-unload") || Config.isFlagEnabled("nether-portals"))
 		{
 			this.getServer().getPluginManager().registerEvents(new WorldListener(this, this.regionContainer), this);
+		}
+
+		if (Config.isFlagEnabled("navwand-jumpto") || Config.isFlagEnabled("navwand-thru"))
+		{
+			this.getServer().getPluginManager().registerEvents(new NavigationWandListener(this.worldGuardPlugin, this.regionContainer, this.sessionManager), this);
 		}
 
 		// EntityListener handles multiple flags

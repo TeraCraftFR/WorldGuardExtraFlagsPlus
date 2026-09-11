@@ -221,6 +221,11 @@ public final class PluginConfig {
 			"When false, glide is not registered — remove glide from existing regions or WorldGuard will warn (issue #13)."
 		})
 		private boolean glide = true;
+
+		@Comment("Enables navwand-jumpto: controls WorldEdit navigation-wand left-click teleports, regardless of item. Restart after changing.")
+		private boolean navwandJumpto = true;
+		@Comment("Enables navwand-thru: controls WorldEdit navigation-wand right-click teleports, regardless of item. Restart after changing.")
+		private boolean navwandThru = true;
 		private boolean frostwalker = true;
 
 		@Comment({
