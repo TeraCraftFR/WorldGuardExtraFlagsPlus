@@ -1,180 +1,219 @@
 package dev.tins.worldguardextraflagsplus.listeners;
 
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.LocalSession;
+import com.sk89q.worldedit.WorldEdit;
+import com.sk89q.worldedit.blocks.BaseItemStack;
+import com.sk89q.worldedit.command.tool.DoubleActionTraceTool;
+import com.sk89q.worldedit.command.tool.NavigationWand;
+import com.sk89q.worldedit.command.tool.Tool;
+import com.sk89q.worldedit.entity.Player;
+import com.sk89q.worldedit.event.platform.InputType;
+import com.sk89q.worldedit.event.platform.PlayerInputEvent;
+import com.sk89q.worldedit.session.SessionManager;
+import com.sk89q.worldedit.util.HandSide;
+import com.sk89q.worldedit.util.Location;
+import com.sk89q.worldedit.util.eventbus.EventBus;
+import com.sk89q.worldedit.util.eventbus.Subscribe;
+import com.sk89q.worldedit.world.item.ItemType;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
-import com.sk89q.worldguard.session.SessionManager;
 import dev.tins.worldguardextraflagsplus.Config;
 import dev.tins.worldguardextraflagsplus.Messages;
 import dev.tins.worldguardextraflagsplus.flags.Flags;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.Bukkit;
 import org.junit.jupiter.api.*;
 import org.mockito.MockedStatic;
-import static org.mockito.Mockito.*;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class NavigationWandListenerTest {
-	private MockedStatic<Config> config;
-	private MockedStatic<Messages> messages;
-	private MockedStatic<BukkitAdapter> adapter;
-	private MockedStatic<NavigationWandOrigin> origin;
-	private Player player;
-	private ItemStack item;
-	private LocalPlayer local;
-	private SessionManager sessions;
-	private RegionQuery query;
-	private Location from;
-	private com.sk89q.worldedit.util.Location weFrom;
-	private com.sk89q.worldedit.world.World weWorld;
-	private NavigationWandListener listener;
+	MockedStatic<Config> config;
+	MockedStatic<Messages> messages;
+	MockedStatic<Bukkit> bukkitStatic;
+	Player player;
+	org.bukkit.entity.Player bukkit;
+	LocalSession session;
+	NavigationWand original;
+	AtomicReference<Tool> bound;
+	NavigationWandListener listener;
+	RegionQuery query;
+	LocalPlayer local;
+	Location from;
+	com.sk89q.worldguard.session.SessionManager wgSessions;
+	EventBus bus;
+	BaseItemStack item;
+	ItemType type;
+	NavigationWandListener.ToolAccess access;
 
-	@BeforeEach void setup() {
+	@BeforeEach void setup() throws Exception {
 		config = mockStatic(Config.class);
 		messages = mockStatic(Messages.class);
-		adapter = mockStatic(BukkitAdapter.class);
-		origin = mockStatic(NavigationWandOrigin.class);
-		config.when(() -> Config.isFlagEnabled("navwand-jumpto")).thenReturn(true);
-		origin.when(() -> NavigationWandOrigin.findAction(any())).thenReturn(NavigationWandOrigin.Action.JUMPTO);
-		config.when(() -> Config.isFlagEnabled("navwand-thru")).thenReturn(true);
-
+		bukkitStatic = mockStatic(Bukkit.class);
+		config.when(() -> Config.isFlagEnabled(anyString())).thenReturn(true);
+		SessionManager manager = mock(SessionManager.class);
+		session = mock(LocalSession.class);
 		player = mock(Player.class);
-		item = mock(ItemStack.class);
-		World world = mock(World.class);
-		from = new Location(world, 0, 70, 0);
-		when(player.getLocation()).thenReturn(from);
-		weWorld = mock(com.sk89q.worldedit.world.World.class);
-		weFrom = mock(com.sk89q.worldedit.util.Location.class);
-		adapter.when(() -> BukkitAdapter.adapt(world)).thenReturn(weWorld);
-		adapter.when(() -> BukkitAdapter.adapt(from)).thenReturn(weFrom);
+		when(player.hasPermission(anyString())).thenReturn(true);
+		when(manager.get(player)).thenReturn(session);
+		UUID id = UUID.randomUUID();
+		when(player.getUniqueId()).thenReturn(id);
+		bukkit = mock(org.bukkit.entity.Player.class);
+		bukkitStatic.when(() -> Bukkit.getPlayer(id)).thenReturn(bukkit);
 		WorldGuardPlugin wg = mock(WorldGuardPlugin.class);
 		local = mock(LocalPlayer.class);
-		when(wg.wrapPlayer(player)).thenReturn(local);
+		when(wg.wrapPlayer(bukkit)).thenReturn(local);
 		RegionContainer regions = mock(RegionContainer.class);
 		query = mock(RegionQuery.class);
 		when(regions.createQuery()).thenReturn(query);
-		when(query.queryState(weFrom, local, Flags.NAVWAND_JUMPTO)).thenReturn(StateFlag.State.DENY);
-		sessions = mock(SessionManager.class);
-		listener = new NavigationWandListener(wg, regions, sessions);
+		from = mock(Location.class);
+		when(player.getLocation()).thenReturn(from);
+		when(query.queryState(eq(from), eq(local), any(StateFlag.class))).thenReturn(StateFlag.State.DENY);
+		wgSessions = mock(com.sk89q.worldguard.session.SessionManager.class);
+		item = mock(BaseItemStack.class);
+		type = mock(ItemType.class);
+		when(item.getType()).thenReturn(type);
+		when(player.getItemInHand(HandSide.MAIN_HAND)).thenReturn(item);
+		original = mock(NavigationWand.class);
+		bound = new AtomicReference<>(original);
+		when(session.getTool(type)).thenAnswer(i -> bound.get());
+		access = mock(NavigationWandListener.ToolAccess.class);
+		when(access.get(session, player, item)).thenAnswer(i -> bound.get());
+		doAnswer(i -> { bound.set(i.getArgument(2)); return null; }).when(access).set(eq(session), eq(item), any(Tool.class));
+		bus = new EventBus();
+		listener = new NavigationWandListener(manager, bus, wg, regions, wgSessions, Logger.getAnonymousLogger(), access);
+		bus.register(listener);
 	}
 
 	@AfterEach void cleanup() {
-		origin.close(); adapter.close(); messages.close(); config.close();
+		if (listener != null) listener.close();
+		if (bukkitStatic != null) bukkitStatic.close();
+		if (messages != null) messages.close();
+		if (config != null) config.close();
 	}
 
-	private PlayerTeleportEvent teleport(PlayerTeleportEvent.TeleportCause cause) {
-		return new PlayerTeleportEvent(player, from, new Location(from.getWorld(), 30, 80, 30), cause);
-	}
-
-	@Test void blocksActualNavigationFromDeniedSource() {
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
-		verify(query).queryState(weFrom, local, Flags.NAVWAND_JUMPTO);
-	}
-
-	@Test void preservesUnrelatedPluginTeleportEvenWhileHoldingCompass() {
-		origin.when(() -> NavigationWandOrigin.findAction(any())).thenReturn(null);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
-	}
-
-	@Test void preservesCommandsPearlsAndPortals() {
-		for (PlayerTeleportEvent.TeleportCause cause : new PlayerTeleportEvent.TeleportCause[] {
-				PlayerTeleportEvent.TeleportCause.COMMAND, PlayerTeleportEvent.TeleportCause.ENDER_PEARL,
-				PlayerTeleportEvent.TeleportCause.NETHER_PORTAL, PlayerTeleportEvent.TeleportCause.CHORUS_FRUIT}) {
-			PlayerTeleportEvent event = teleport(cause);
-			listener.onTeleport(event);
-			assertFalse(event.isCancelled(), cause.toString());
+	/** Models PlatformManager, which deliberately ignores the cancelled marker. */
+	public final class Dispatcher {
+		Runnable queued;
+		boolean deferred;
+		Dispatcher(boolean deferred) { this.deferred = deferred; }
+		@Subscribe public void input(PlayerInputEvent event) {
+			Tool captured = bound.get();
+			queued = () -> {
+				if (captured instanceof DoubleActionTraceTool tool) {
+					if (event.getInputType() == InputType.PRIMARY) tool.actSecondary(null, null, player, session);
+					else tool.actPrimary(null, null, player, session);
+				}
+			};
+			if (!deferred) queued.run();
 		}
 	}
 
-	@Test void honorsWorldGuardBypass() {
-		when(sessions.hasBypass(local, weWorld)).thenReturn(true);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
+	@Test void blocksSynchronousWorldEditBothClicksAndRestoresBinding() {
+		Dispatcher dispatcher = new Dispatcher(false); bus.register(dispatcher);
+		for (InputType input : InputType.values()) {
+			PlayerInputEvent event = new PlayerInputEvent(player, input); bus.post(event);
+			assertTrue(event.isCancelled()); assertSame(original, bound.get());
+		}
+		verifyNoInteractions(original);
+		messages.verify(() -> Messages.sendMessageWithCooldown(bukkit, "navwand-jumpto-denied"));
+		messages.verify(() -> Messages.sendMessageWithCooldown(bukkit, "navwand-thru-denied"));
 	}
 
-	@Test void allowsNavigationOutsideDeniedRegions() {
-		when(query.queryState(weFrom, local, Flags.NAVWAND_JUMPTO)).thenReturn(StateFlag.State.ALLOW);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
+	@Test void blocksFaweDeferredActionsAfterOriginalBindingIsRestored() throws Exception {
+		Dispatcher dispatcher = new Dispatcher(true); bus.register(dispatcher);
+		for (InputType input : InputType.values()) {
+			bus.post(new PlayerInputEvent(player, input));
+			assertSame(original, bound.get());
+			// Run on another thread with no input-event stack or thread-local context.
+			Thread thread = new Thread(dispatcher.queued); thread.start(); thread.join();
+		}
+		verifyNoInteractions(original);
 	}
 
-	@Test void respectsDisabledFlag() {
-		config.when(() -> Config.isFlagEnabled("navwand-jumpto")).thenReturn(false);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
+	@Test void independentFlagsAllowRightAndBlockLeft() {
+		when(query.queryState(from, local, Flags.NAVWAND_THRU)).thenReturn(StateFlag.State.ALLOW);
+		Dispatcher dispatcher = new Dispatcher(false); bus.register(dispatcher);
+		bus.post(new PlayerInputEvent(player, InputType.PRIMARY));
+		bus.post(new PlayerInputEvent(player, InputType.SECONDARY));
+		verify(original).actPrimary(null, null, player, session);
+		verify(original, never()).actSecondary(any(), any(), any(), any());
 	}
 
-	@Test void supportsAnyItemWithoutInspectingInventory() {
-		when(item.getType()).thenReturn(Material.STONE);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
-		verify(player, never()).getInventory();
+	@Test void independentFlagsAllowLeftAndBlockRight() {
+		when(query.queryState(from, local, Flags.NAVWAND_JUMPTO)).thenReturn(StateFlag.State.ALLOW);
+		Dispatcher dispatcher = new Dispatcher(false); bus.register(dispatcher);
+		bus.post(new PlayerInputEvent(player, InputType.PRIMARY));
+		bus.post(new PlayerInputEvent(player, InputType.SECONDARY));
+		verify(original).actSecondary(null, null, player, session);
+		verify(original, never()).actPrimary(any(), any(), any(), any());
 	}
 
-	@Test void blocksRightClickWithItsOwnFlagAndMessage() {
-		origin.when(() -> NavigationWandOrigin.findAction(any())).thenReturn(NavigationWandOrigin.Action.THRU);
-		when(query.queryState(weFrom, local, Flags.NAVWAND_THRU)).thenReturn(StateFlag.State.DENY);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
-		verify(query).queryState(weFrom, local, Flags.NAVWAND_THRU);
-		messages.verify(() -> Messages.sendMessageWithCooldown(player, "navwand-thru-denied"));
-	}
-
-	@Test void denyingLeftClickDoesNotDenyRightClick() {
-		origin.when(() -> NavigationWandOrigin.findAction(any())).thenReturn(NavigationWandOrigin.Action.THRU);
-		when(query.queryState(weFrom, local, Flags.NAVWAND_THRU)).thenReturn(StateFlag.State.ALLOW);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
-	}
-
-	@Test void disablingRightClickFlagDoesNotDisableLeftClick() {
-		config.when(() -> Config.isFlagEnabled("navwand-thru")).thenReturn(false);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
-	}
-
-	@Test void disablingLeftClickFlagDoesNotDisableRightClick() {
-		config.when(() -> Config.isFlagEnabled("navwand-jumpto")).thenReturn(false);
-		origin.when(() -> NavigationWandOrigin.findAction(any())).thenReturn(NavigationWandOrigin.Action.THRU);
-		when(query.queryState(weFrom, local, Flags.NAVWAND_THRU)).thenReturn(StateFlag.State.DENY);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
-	}
-
-	@Test void unsetRegionFlagAllowsNavigation() {
-		when(query.queryState(weFrom, local, Flags.NAVWAND_JUMPTO)).thenReturn(null);
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		listener.onTeleport(event);
-		assertFalse(event.isCancelled());
-	}
-
-	@Test void preservesAlreadyCancelledTeleportWithoutMessage() {
-		PlayerTeleportEvent event = teleport(PlayerTeleportEvent.TeleportCause.PLUGIN);
-		event.setCancelled(true);
-		listener.onTeleport(event);
-		assertTrue(event.isCancelled());
+	@Test void bypassPreservesOriginalTool() throws Exception {
+		when(wgSessions.hasBypass(eq(local), any())).thenReturn(true);
+		bus.post(new PlayerInputEvent(player, InputType.PRIMARY));
+		verify(access, never()).set(any(), any(), any());
 		messages.verifyNoInteractions();
+	}
+
+	@Test void usesActualBoundToolForAnyMaterial() throws Exception {
+		for (String material : new String[] {"minecraft:compass", "minecraft:feather", "minecraft:stick"}) {
+			when(type.getId()).thenReturn(material);
+			PlayerInputEvent event = new PlayerInputEvent(player, InputType.PRIMARY);
+			bus.post(event); assertTrue(event.isCancelled()); assertSame(original, bound.get());
+		}
+		verify(access, times(6)).set(eq(session), eq(item), any());
+	}
+
+	@Test void ordinaryItemOrBrushIsNotBlocked() throws Exception {
+		Tool brush = mock(Tool.class); bound.set(brush);
+		PlayerInputEvent event = new PlayerInputEvent(player, InputType.PRIMARY); bus.post(event);
+		assertFalse(event.isCancelled()); verify(access, never()).set(any(), any(), any());
+	}
+
+	@Test void unsetFlagAllowsAction() {
+		when(query.queryState(from, local, Flags.NAVWAND_JUMPTO)).thenReturn(null);
+		PlayerInputEvent event = new PlayerInputEvent(player, InputType.PRIMARY); bus.post(event);
+		assertFalse(event.isCancelled()); assertSame(original, bound.get());
+	}
+
+	@Test void disabledLeftFlagLeavesRightFlagActive() {
+		config.when(() -> Config.isFlagEnabled("navwand-jumpto")).thenReturn(false);
+		PlayerInputEvent left = new PlayerInputEvent(player, InputType.PRIMARY); bus.post(left);
+		PlayerInputEvent right = new PlayerInputEvent(player, InputType.SECONDARY); bus.post(right);
+		assertFalse(left.isCancelled()); assertTrue(right.isCancelled());
+	}
+
+	@Test void missingActionPermissionDoesNotInterfere() {
+		when(player.hasPermission("worldedit.navigation.jumpto.tool")).thenReturn(false);
+		PlayerInputEvent event = new PlayerInputEvent(player, InputType.PRIMARY); bus.post(event);
+		assertFalse(event.isCancelled()); messages.verifyNoInteractions();
+	}
+
+	@Test void restoresOriginalItemObjectAndDoesNotLeakIntoNextAllowedClick() throws Exception {
+		bus.post(new PlayerInputEvent(player, InputType.PRIMARY));
+		verify(access).set(session, item, original);
+		when(query.queryState(from, local, Flags.NAVWAND_JUMPTO)).thenReturn(StateFlag.State.ALLOW);
+		Dispatcher dispatcher = new Dispatcher(false); bus.register(dispatcher);
+		bus.post(new PlayerInputEvent(player, InputType.PRIMARY));
+		verify(original).actSecondary(null, null, player, session);
+	}
+
+	@Test void unrelatedBindingChangeIsNotOverwritten() throws Exception {
+		PlayerInputEvent event = new PlayerInputEvent(player, InputType.PRIMARY);
+		listener.beforeInput(event); Tool other = mock(Tool.class); bound.set(other);
+		listener.afterInput(event); assertSame(other, bound.get());
+		verify(access, never()).set(session, item, original);
+	}
+
+	@Test void closeRestoresAnOutstandingBinding() {
+		listener.beforeInput(new PlayerInputEvent(player, InputType.PRIMARY));
+		assertInstanceOf(BlockedNavigationTool.class, bound.get()); listener.close();
+		assertSame(original, bound.get());
 	}
 }
