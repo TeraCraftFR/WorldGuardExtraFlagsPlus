@@ -189,6 +189,8 @@ public class Config
 			case "fly-speed": return flags.isFlySpeed();
 			case "fly": return flags.isFly();
 			case "glide": return flags.isGlide();
+			case "navwand-jumpto": return flags.isNavwandJumpto();
+			case "navwand-thru": return flags.isNavwandThru();
 			case "frostwalker": return flags.isFrostwalker();
 
 			// Protection & Survival
