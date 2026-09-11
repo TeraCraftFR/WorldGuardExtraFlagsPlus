@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>dev.tins</groupId>
 		<artifactId>worldguardextraflagsplus</artifactId>
-		<version>4.4.5</version>
+		<version>4.4.6</version>
 	</parent>
 
 	<groupId>dev.tins.worldguardextraflagsplus</groupId>
@@ -280,4 +280,24 @@
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>navigation-runtime-tests</id>
+			<activation><property><name>navigation.runtimeJar</name></property></activation>
+			<build><plugins><plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>com.fastasyncworldedit:*</classpathDependencyExclude>
+						<classpathDependencyExclude>com.sk89q.worldedit:*</classpathDependencyExclude>
+					</classpathDependencyExcludes>
+					<additionalClasspathElements>
+						<additionalClasspathElement>${navigation.runtimeJar}</additionalClasspathElement>
+					</additionalClasspathElements>
+				</configuration>
+			</plugin></plugins></build>
+		</profile>
+	</profiles>
 </project>
