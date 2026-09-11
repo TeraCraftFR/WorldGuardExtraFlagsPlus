@@ -80,6 +80,69 @@ WorldGuard ExtraFlags Plus (WGEFP) is a plugin extension for [WorldGuard](https:
 
 📖 **Full documentation:** [tinsware Wiki — WorldGuard ExtraFlags Plus](https://tinsware.github.io/wiki/docs/games/minecraft/plugins/worldguard-extraflags-plus/) — flag usage examples, reference, configuration, and deny-mobspawn categories.
 
+## WorldEdit navigation-wand flags
+
+Players can keep their WorldEdit navigation permissions while individual regions
+restrict either action independently, on **any item bound to the navigation wand**:
+
+| Flag | Mouse action | WorldEdit action |
+| --- | --- | --- |
+| `navwand-jumpto` | Left click | Jump to the block being aimed at |
+| `navwand-thru` | Right click | Pass through the wall being aimed at |
+
+```text
+/rg flag spawn navwand-jumpto deny
+/rg flag spawn navwand-thru deny
+```
+
+Use `allow` instead of `deny` to allow either action. Both flags default to allow.
+They check the **departure region**, using WorldGuard priorities, region groups
+and session bypass. They do not prevent jumping into a region from outside.
+
+The checks identify WorldEdit's actual `NavigationWand` action, not an item
+material, item name or a recent click. A compass, a custom configured navigation
+item or an item bound with WorldEdit's navigation-wand command is treated the
+same. Holding an ordinary item does not make its interactions subject to these
+flags. No item or permission is removed. Left and right click remain independent.
+
+Navigation commands (`/jumpto`, `/thru`, `/top`), other command teleports, pearls,
+portals, selection wands and editing brushes are not restricted by these flags.
+There is no repeating task, temporary permission change or click cancellation.
+
+Configuration in `config-wgefp.yml`:
+
+```yaml
+all-flags-control:
+  navwand-jumpto: true
+  navwand-thru: true
+```
+
+Restart after changing registration toggles; remove saved region values before
+disabling registration. Messages `navwand-jumpto-denied` and `navwand-thru-denied`
+in `messages-wgefp.yml` use the existing message cooldown; an empty string silences
+the corresponding message.
+
+### Integration limits and validation
+
+WorldEdit can process cancelled Bukkit clicks. These flags instead cancel a
+`PLUGIN` teleport when its synchronous call stack contains exactly
+`com.sk89q.worldedit.command.tool.NavigationWand.actSecondary` (left click) or
+`actPrimary` (right click). WorldEdit has already selected the tool and checked
+its permissions at that point. Unrelated plugin teleports are left alone even
+while holding a navigation item.
+
+This depends on WorldEdit implementation details. **FAWE's deferred/asynchronous
+teleport path is not supported by this implementation**: it can lose the tool
+call stack before the Bukkit teleport event. Renamed tool classes/methods and
+other deferred forks also need a dedicated integration. Do not rely on these
+flags as a FAWE protection. Folia runtime behavior has not been validated.
+
+Automated tests cover both actions, independent toggles, region states, departure
+location, bypass, unrelated teleports and stack filtering. In-game validation is
+still required: test both clicks with a compass and a non-compass bound item,
+deny only one action at a time, test allowed/denied departure regions, ordinary
+items, navigation commands, portals and WorldGuard bypass.
+
 ## Configuration
 
 - **`plugins/WorldGuard/config-wgefp.yml`** — plugin toggles (e.g. `all-flags-control.console-command-repeat`, `all-flags-control.console-command-timer`, `all-flags-control.check-order`, `require-membership`, `hide-players`, `verbose-startup-logs`).
