@@ -37,6 +37,7 @@ import dev.tins.worldguardextraflagsplus.flags.Flags;
 import dev.tins.worldguardextraflagsplus.papi.WGEFPPlaceholderExpansion;
 import dev.tins.worldguardextraflagsplus.protocollib.ProtocolLibHelper;
 import dev.tins.worldguardextraflagsplus.updater.UpdateChecker;
+import dev.tins.worldguardextraflagsplus.util.Logo;
 import dev.tins.worldguardextraflagsplus.wg.WorldGuardUtils;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -183,7 +184,7 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	@Override
 	public void onEnable()
 	{
-		displayPluginLogo();
+		Logo.display();
 
 		// Config before messages so verbose-startup-logs applies to message load lines
 		Config.initialize(this);
@@ -1050,29 +1051,6 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 		return dev.tins.worldguardextraflagsplus.api.FlagDescriptions.getAll();
 	}
 
-	/**
-	 * Startup logo — direct console output, no plugin prefix (ANSI colors embedded in each line).
-	 * Replace logo lines below as needed.
-	 */
-	private void displayPluginLogo()
-	{
-		String reset = "\u001B[0m";
-		String red = "\u001B[31m";
-		String orange = "\u001B[38;5;208m";
-
-		logoLine("");
-		logoLine(red + "ＴＩＮＳ  ＭＣ  （ｔｉｎｓｗａｒｅ）" + reset);
-		logoLine(orange + "┓ ┏┏┓┏┓┏┓┏┓" + reset);
-		logoLine(orange + "┃┃┃┃┓┣ ┣ ┃┃" + reset);
-		logoLine(orange + "┗┻┛┗┛┗┛┻ ┣┛" + reset);
-		logoLine("");
-	}
-
-	/** Logo line — no {@code [PluginName]} logger prefix. */
-	private static void logoLine(String message)
-	{
-		System.out.println(message);
-	}
 }
 
 
