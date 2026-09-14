@@ -34,7 +34,6 @@ import lombok.Getter;
 
 import dev.tins.worldguardextraflagsplus.disablecompletely.DisableCompletelyQuery;
 import dev.tins.worldguardextraflagsplus.flags.Flags;
-import dev.tins.worldguardextraflagsplus.papi.WGEFPPlaceholderExpansion;
 import dev.tins.worldguardextraflagsplus.protocollib.ProtocolLibHelper;
 import dev.tins.worldguardextraflagsplus.updater.UpdateChecker;
 import dev.tins.worldguardextraflagsplus.util.Logo;
@@ -58,10 +57,10 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	@Getter private ProtocolLibHelper protocolLibHelper;
 
 	/**
-	 * PlaceholderAPI expansion — instantiated only when PlaceholderAPI is present on the server so
-	 * the optional {@code provided} dependency can never cause NoClassDefFoundError on other servers.
+	 * PlaceholderAPI expansion — stored as {@link Object} and loaded via reflection so this class
+	 * never references PlaceholderAPI types when PlaceholderAPI is not installed (optional softdepend).
 	 */
-	@Getter private WGEFPPlaceholderExpansion placeholderExpansion;
+	private Object placeholderExpansion;
 
 	/**
 	 * PacketEvents abstract listener from {@code asAbstract(...)} — stored as {@link Object} so this class
@@ -369,33 +368,7 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 		// Setup update checker
 		this.setupUpdateChecker();
 
-		// PlaceholderAPI expansion (wgefp) — only when PAPI is installed and the config toggle is on
-		if (Config.isFlagEnabled("papi-placeholders"))
-		{
-			Plugin placeholderAPI = this.getServer().getPluginManager().getPlugin("PlaceholderAPI");
-			if (placeholderAPI != null && placeholderAPI.isEnabled())
-			{
-				try
-				{
-					WGEFPPlaceholderExpansion expansion = new WGEFPPlaceholderExpansion(this);
-					if (expansion.register())
-					{
-						this.placeholderExpansion = expansion;
-						expansion.start();
-						Config.logStartupInfo("[PlaceholderAPI] Registered expansion wgefp (players_in_region)");
-					}
-					else
-					{
-						this.getLogger().warning("[PlaceholderAPI] Could not register wgefp expansion.");
-					}
-				}
-				catch (Throwable t)
-				{
-					this.getLogger().warning("[PlaceholderAPI] Failed to enable wgefp expansion: " +
-							(t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName()));
-				}
-			}
-		}
+		this.registerPlaceholderExpansionReflect();
 		
 		// Register reload command
 		this.getCommand("wgefp").setExecutor(new dev.tins.worldguardextraflagsplus.commands.ReloadCommand(this));
@@ -939,6 +912,70 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 		}, this);
 	}
 
+	/**
+	 * Registers the wgefp PlaceholderAPI expansion via reflection so this class never loads
+	 * PlaceholderAPI types when PlaceholderAPI is not installed.
+	 */
+	private void registerPlaceholderExpansionReflect()
+	{
+		if (!Config.isFlagEnabled("papi-placeholders"))
+		{
+			return;
+		}
+		Plugin placeholderAPI = this.getServer().getPluginManager().getPlugin("PlaceholderAPI");
+		if (placeholderAPI == null || !placeholderAPI.isEnabled())
+		{
+			return;
+		}
+		try
+		{
+			ClassLoader cl = this.getClass().getClassLoader();
+			Class<?> expansionClass = Class.forName(
+					"dev.tins.worldguardextraflagsplus.papi.WGEFPPlaceholderExpansion",
+					true,
+					cl);
+			Object expansion = expansionClass.getConstructor(WorldGuardExtraFlagsPlusPlugin.class).newInstance(this);
+			Object registered = expansionClass.getMethod("register").invoke(expansion);
+			if (Boolean.TRUE.equals(registered))
+			{
+				this.placeholderExpansion = expansion;
+				expansionClass.getMethod("start").invoke(expansion);
+				Config.logStartupInfo("[PlaceholderAPI] Registered expansion wgefp (players_in_region)");
+			}
+			else
+			{
+				this.getLogger().warning("[PlaceholderAPI] Could not register wgefp expansion.");
+			}
+		}
+		catch (Throwable t)
+		{
+			this.placeholderExpansion = null;
+			this.getLogger().warning("[PlaceholderAPI] Failed to enable wgefp expansion: " +
+					(t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName()));
+		}
+	}
+
+	private void shutdownPlaceholderExpansionReflect()
+	{
+		if (this.placeholderExpansion == null)
+		{
+			return;
+		}
+		try
+		{
+			this.placeholderExpansion.getClass().getMethod("shutdown").invoke(this.placeholderExpansion);
+		}
+		catch (Throwable t)
+		{
+			this.getLogger().warning("[PlaceholderAPI] Failed to shutdown wgefp expansion: " +
+					(t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName()));
+		}
+		finally
+		{
+			this.placeholderExpansion = null;
+		}
+	}
+
 	private void unregisterDisableCompletelyProtocolLibHookReflect()
 	{
 		if (this.disableCompletelyProtocolLibListener == null)
@@ -995,11 +1032,7 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	@Override
 	public void onDisable()
 	{
-		if (this.placeholderExpansion != null)
-		{
-			this.placeholderExpansion.shutdown();
-			this.placeholderExpansion = null;
-		}
+		this.shutdownPlaceholderExpansionReflect();
 
 		WorldGuardUtils.cancelAllTasks();
 
