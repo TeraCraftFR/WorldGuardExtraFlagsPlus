@@ -1085,7 +1085,7 @@ public class WorldGuardExtraFlagsPlusPlugin extends JavaPlugin
 	/** Logo line — no {@code [PluginName]} logger prefix. */
 	private static void logoLine(String message)
 	{
-		System.out.println(message);
+		this.getLogger().info(message);
 	}
 }
 
