@@ -2,7 +2,7 @@
 
 WorldGuard ExtraFlags Plus (WGEFP) is a plugin extension for [WorldGuard](https://github.com/EngineHub/WorldGuard) that adds **45+ extra region flags** — item & throwable blocking, entry control, chat formatting, and region command automation.
 
-**Release 4.4.5**
+**Release 4.4.7**
 
 ## ⚠️ Warning DO NOT USE BOTH PLUGINS TOGETHER!
 
@@ -136,7 +136,7 @@ permissions changes are made. Commands and other tools never enter this path.
 
 `navigation-wand-debug: true` at the top level of `config-wgefp.yml` logs the
 resolved action, item, flag state and bypass. Reload config with `/wgefp reload`.
-The startup message identifies this build as `4.4.6`.
+The startup message identifies this build as `4.4.7`. Startup branding is emitted through Bukkit's plugin logger, avoiding Paper's direct-console-output warning.
 
 Automated checks exercise the real event bus using both WorldEdit 7.4.5 and
 FAWE 2.15.4 runtime JARs, including a deferred action on a separate thread,
@@ -180,5 +180,5 @@ Install [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/
 
 ## Support & Community
 
-- 📜 **Changelog:** [CHANGELOG.md](CHANGELOG.md) (release **4.4.5**)
+- 📜 **Changelog:** [CHANGELOG.md](CHANGELOG.md) (release **4.4.7**)
 - 💬 **Discord:** [Join our Discord server](https://tinsware.github.io/discord)
